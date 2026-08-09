@@ -1,0 +1,68 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-zeetafin}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_NAME:-zeetafin}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./ZeetaFin-BE
+    image: zeetafin-be:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 3001
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-zeetafin}
+      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-random-secret}
+      NODE_ENV: production
+      DB_SYNC: "true"
+      DB_LOGGING: "false"
+    ports:
+      - "3001:3001"
+
+  seed:
+    image: zeetafin-be:latest
+    restart: "no"
+    depends_on:
+      backend:
+        condition: service_started
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-zeetafin}
+      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-random-secret}
+    command: ["node", "dist/seed.js"]
+
+  frontend:
+    build:
+      context: ./ZeetaFin-FE
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api}
+    image: zeetafin-fe:latest
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
