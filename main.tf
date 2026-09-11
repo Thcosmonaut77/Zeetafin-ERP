@@ -74,6 +74,13 @@ resource "aws_security_group" "example" {
   }
 
   ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
     from_port   = 3000
     to_port     = 3000
     protocol    = "tcp"
@@ -90,11 +97,11 @@ resource "aws_security_group" "example" {
  
 resource "aws_instance" "example" {
   ami                    = data.aws_ami.ubuntu.id
-  instance_type          = "t3.medium"
+  instance_type          = "t3.micro"
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.example.id]
   key_name               = "stellar_key_eu-west"
-  user_data              = file("./docker.sh")
+#  user_data              = file("./docker.sh")
  
   tags = {
     Name = "Terraform Example Instance"
